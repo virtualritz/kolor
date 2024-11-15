@@ -25,7 +25,7 @@ serde = { optional = true, version = "1", features = ["derive"] }
 default = ["std-glam", "color-matrices", "f32"]
 ## Add a bunch of common color spaces.
 color-matrices = []
-## Use `f64` instead of `f32` for calculations.
+## Use `f32` for calculations/types.
 f32 = []
 ## Add support for `serde`'s `Serialize` and `Deserialize` on `kolor` types.
 serde = ["dep:serde", "glam/serde"]
