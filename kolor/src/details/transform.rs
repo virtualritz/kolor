@@ -2,7 +2,7 @@ use super::{
     color::{TransformFn, WhitePoint},
     math::prelude::*,
 };
-use crate::{Float, Mat3, Vec3, PI, TAU};
+use crate::{Float, Mat3, PI, TAU, Vec3};
 #[cfg(all(not(feature = "std"), feature = "libm"))]
 use num_traits::Float;
 
@@ -770,8 +770,8 @@ pub use hsx::*;
 
 #[cfg(test)]
 mod test {
-    use crate::spaces;
     use crate::ColorConversion;
+    use crate::spaces;
 
     use super::*;
     #[test]

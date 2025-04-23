@@ -1,5 +1,4 @@
-//! `kolor` implements conversions between color spaces which use 3-component
-//! vectors.
+//! Implements conversions between color spaces which use 3-component vectors.
 //!
 //! It is intended for use in games or other interactive visual applications,
 //! where it can help implement correct color management and wide color gamut
@@ -157,13 +156,9 @@ macro_rules! const_mat3 {
 }
 
 #[cfg(not(feature = "f64"))]
-pub(crate) use core::f32::consts::PI;
-#[cfg(not(feature = "f64"))]
-pub(crate) use core::f32::consts::TAU;
+pub(crate) use core::f32::consts::{PI, TAU};
 #[cfg(feature = "f64")]
-pub(crate) use core::f64::consts::PI;
-#[cfg(feature = "f64")]
-pub(crate) use core::f64::consts::TAU;
+pub(crate) use core::f64::consts::{PI, TAU};
 
 pub mod details {
     pub mod cat;
