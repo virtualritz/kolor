@@ -99,16 +99,10 @@ impl PartialEq for ColorConversion {
 }
 impl core::fmt::Debug for ColorConversion {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let src_transform = if !self.src_space.is_linear() {
-            self.src_space.transform_function()
-        } else {
-            TransformFn::None
-        };
-        let dst_transform = if !self.dst_space.is_linear() {
-            self.dst_space.transform_function()
-        } else {
-            TransformFn::None
-        };
+        let src_transform = self.src_space.transform_function();
+
+        let dst_transform = self.dst_space.transform_function();
+
         f.debug_struct("ColorConversion")
             .field("src_space", &self.src_space)
             .field("dst_space", &self.dst_space)
@@ -122,23 +116,27 @@ impl core::fmt::Debug for ColorConversion {
 impl ColorConversion {
     pub fn new(src: ColorSpace, dst: ColorSpace) -> Self {
         let src_transform = if !src.is_linear() {
-            ColorTransform::new(src.transform_function(), TransformFn::None)
+            ColorTransform::new(src.transform_function(), None)
         } else {
             None
         };
+
         let src_linear = ColorSpace::linear(src.primaries(), src.white_point());
         let dst_linear = ColorSpace::linear(dst.primaries(), dst.white_point());
+
         let linear_transform = LinearColorConversion::new(src_linear, dst_linear);
         let linear_transform = if linear_transform.mat == Mat3::IDENTITY {
             None
         } else {
             Some(linear_transform)
         };
+
         let dst_transform = if !dst.is_linear() {
-            ColorTransform::new(TransformFn::None, dst.transform_function())
+            ColorTransform::new(None, dst.transform_function())
         } else {
             None
         };
+
         Self {
             src_space: src,
             dst_space: dst,
@@ -176,16 +174,14 @@ impl ColorConversion {
         self.dst_transform
     }
 
-    pub fn src_transform_fn(&self) -> TransformFn {
+    pub fn src_transform_fn(&self) -> Option<TransformFn> {
         self.src_transform
-            .map(|_| self.src_space.transform_function())
-            .unwrap_or(TransformFn::None)
+            .map(|_| self.src_space.transform_function())?
     }
 
-    pub fn dst_transform_fn(&self) -> TransformFn {
+    pub fn dst_transform_fn(&self) -> Option<TransformFn> {
         self.dst_transform
-            .map(|_| self.dst_space.transform_function())
-            .unwrap_or(TransformFn::None)
+            .map(|_| self.dst_space.transform_function())?
     }
 
     pub fn src_space(&self) -> ColorSpace {

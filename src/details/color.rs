@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TransformFn {
-    None,
     /// The sRGB transfer functions (aka 'gamma correction').
     Srgb,
     /// Oklab conversion from xyz.
@@ -63,8 +62,6 @@ impl TransformFn {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 pub enum RgbPrimaries {
-    // Primaries
-    None,
     /// BT.709 is the sRGB primaries.
     Bt709,
     // BT 2020 uses the same primaries as BT 2100.
@@ -87,7 +84,6 @@ impl RgbPrimaries {
 
     pub const fn values(&self) -> &[[Float; 2]; 3] {
         match self {
-            Self::None => &[[0.0; 2]; 3],
             Self::Bt709 => &[[0.64, 0.33], [0.30, 0.60], [0.15, 0.06]],
             Self::Bt2020 => &[[0.708, 0.292], [0.17, 0.797], [0.131, 0.046]],
             Self::Ap0 => &[[0.7347, 0.2653], [0.0000, 1.0000], [0.0001, -0.0770]],
@@ -116,7 +112,6 @@ impl RgbPrimaries {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 pub enum WhitePoint {
-    None,
     /// Incandescent/tungsten
     A,
     /// Old direct sunlight at noon
@@ -151,7 +146,6 @@ impl WhitePoint {
     // 769 P3Dci is something I calculated myself from wikipedia constants
     pub const fn values(&self) -> &'static [Float; 3] {
         match self {
-            Self::None => &[0.0, 0.0, 0.0],
             Self::A => &[1.09850, 1.00000, 0.35585],
             Self::B => &[0.99072, 1.00000, 0.85223],
             Self::C => &[0.98074, 1.00000, 1.18232],
@@ -208,13 +202,14 @@ impl WhitePoint {
 pub struct ColorSpace {
     primaries: RgbPrimaries,
     white_point: WhitePoint,
-    transform_fn: TransformFn,
+    transform_fn: Option<TransformFn>,
 }
+
 impl ColorSpace {
     pub const fn new(
         primaries: RgbPrimaries,
         white_point: WhitePoint,
-        transform_fn: TransformFn,
+        transform_fn: Option<TransformFn>,
     ) -> Self {
         Self {
             primaries,
@@ -227,20 +222,20 @@ impl ColorSpace {
         Self {
             primaries,
             white_point,
-            transform_fn: TransformFn::None,
+            transform_fn: None,
         }
     }
 
     /// Whether the color space has a non-linear transform applied
     pub fn is_linear(&self) -> bool {
-        self.transform_fn == TransformFn::None
+        self.transform_fn.is_none()
     }
 
     pub fn as_linear(&self) -> Self {
         Self {
             primaries: self.primaries,
             white_point: self.white_point,
-            transform_fn: TransformFn::None,
+            transform_fn: None,
         }
     }
 
@@ -252,7 +247,7 @@ impl ColorSpace {
         self.white_point
     }
 
-    pub fn transform_function(&self) -> TransformFn {
+    pub fn transform_function(&self) -> Option<TransformFn> {
         self.transform_fn
     }
 
@@ -262,7 +257,7 @@ impl ColorSpace {
         Self {
             primaries: self.primaries,
             white_point: self.white_point,
-            transform_fn: new_transform,
+            transform_fn: Some(new_transform),
         }
     }
 
@@ -288,17 +283,29 @@ impl ColorSpace {
 
     /// Creates a CIE LAB color space using this space's white point.
     pub fn to_cie_lab(&self) -> Self {
-        Self::new(RgbPrimaries::CieXyz, self.white_point, TransformFn::CieLab)
+        Self::new(
+            RgbPrimaries::CieXyz,
+            self.white_point,
+            Some(TransformFn::CieLab),
+        )
     }
 
     /// Creates a CIE uvV color space using this space's white point.
     pub fn to_cie_xyy(&self) -> Self {
-        Self::new(RgbPrimaries::CieXyz, self.white_point, TransformFn::CieXyY)
+        Self::new(
+            RgbPrimaries::CieXyz,
+            self.white_point,
+            Some(TransformFn::CieXyY),
+        )
     }
 
     /// Creates a CIE LCh color space using this space's white point.
     pub fn to_cie_lch(&self) -> Self {
-        Self::new(RgbPrimaries::CieXyz, self.white_point, TransformFn::CieLch)
+        Self::new(
+            RgbPrimaries::CieXyz,
+            self.white_point,
+            Some(TransformFn::CieLch),
+        )
     }
 }
 
@@ -312,8 +319,11 @@ pub mod color_spaces {
 
     /// Encoded sRGB is [linear sRGB][LINEAR_SRGB] with the [sRGB
     /// OETF](TransformFn::Srgb) applied (also called 'gamma-compressed').
-    pub const ENCODED_SRGB: ColorSpace =
-        ColorSpace::new(RgbPrimaries::Bt709, WhitePoint::D65, TransformFn::Srgb);
+    pub const ENCODED_SRGB: ColorSpace = ColorSpace::new(
+        RgbPrimaries::Bt709,
+        WhitePoint::D65,
+        Some(TransformFn::Srgb),
+    );
 
     /// BT.709 is a linear encoding in [BT.709 primaries][RgbPrimaries::Bt709]
     /// with a [D65 whitepoint.][WhitePoint::D65]. It's equivalent to [Linear
@@ -322,8 +332,11 @@ pub mod color_spaces {
 
     /// Encoded BT.709 is [BT.709](BT_709) with the [BT.709
     /// OETF](TransformFn::Bt601) applied.
-    pub const ENCODED_BT_709: ColorSpace =
-        ColorSpace::new(RgbPrimaries::Bt709, WhitePoint::D65, TransformFn::Bt601);
+    pub const ENCODED_BT_709: ColorSpace = ColorSpace::new(
+        RgbPrimaries::Bt709,
+        WhitePoint::D65,
+        Some(TransformFn::Bt601),
+    );
 
     /// ACEScg is a linear encoding in [AP1 primaries][RgbPrimaries::Ap1]
     /// with a [D60 whitepoint][WhitePoint::D60].
@@ -351,14 +364,17 @@ pub mod color_spaces {
 
     /// Encoded BT.2020 is [BT.2020](BT_2020) with the [BT.2020
     /// OETF][TransformFn::Bt601] applied.
-    pub const ENCODED_BT_2020: ColorSpace =
-        ColorSpace::new(RgbPrimaries::Bt2020, WhitePoint::D65, TransformFn::Bt601);
+    pub const ENCODED_BT_2020: ColorSpace = ColorSpace::new(
+        RgbPrimaries::Bt2020,
+        WhitePoint::D65,
+        Some(TransformFn::Bt601),
+    );
 
     /// Encoded BT.2100 PQ is [BT.2020](BT_2020) (equivalent to the linear
     /// BT.2100 space) with the [Perceptual Quantizer inverse
     /// EOTF][TransformFn::Pq] applied.
     pub const ENCODED_BT_2100_PQ: ColorSpace =
-        ColorSpace::new(RgbPrimaries::Bt2020, WhitePoint::D65, TransformFn::Pq);
+        ColorSpace::new(RgbPrimaries::Bt2020, WhitePoint::D65, Some(TransformFn::Pq));
 
     /// Oklab is a non-linear, perceptual encoding in
     /// [XYZ][RgbPrimaries::CieXyz], with a [D65 whitepoint][WhitePoint::D65].
@@ -367,8 +383,11 @@ pub mod color_spaces {
     /// performing blend operations between two colors which you want to be
     /// perceptually pleasing. See [this article](https://bottosson.github.io/posts/oklab/)
     /// for more on why you might want to use the Oklab colorspace.
-    pub const OK_LAB: ColorSpace =
-        ColorSpace::new(RgbPrimaries::CieXyz, WhitePoint::D65, TransformFn::OkLab);
+    pub const OK_LAB: ColorSpace = ColorSpace::new(
+        RgbPrimaries::CieXyz,
+        WhitePoint::D65,
+        Some(TransformFn::OkLab),
+    );
 
     /// Oklch is a non-linear, perceptual encoding in
     /// [XYZ][RgbPrimaries::CieXyz], with a [D65
@@ -380,24 +399,33 @@ pub mod color_spaces {
     /// improved version of an HSL/HSV-style color space. See
     /// [this article](https://bottosson.github.io/posts/oklab/) for more on why
     /// you might want to use the Oklch colorspace.
-    pub const OK_LCH: ColorSpace =
-        ColorSpace::new(RgbPrimaries::CieXyz, WhitePoint::D65, TransformFn::OkLch);
+    pub const OK_LCH: ColorSpace = ColorSpace::new(
+        RgbPrimaries::CieXyz,
+        WhitePoint::D65,
+        Some(TransformFn::OkLch),
+    );
 
     /// ICtCp_PQ is a non-linear encoding in [BT.2020
     /// primaries][RgbPrimaries::Bt2020], with a [D65
     /// whitepoint][WhitePoint::D65], using the PQ transfer function
-    pub const ICT_CP_PQ: ColorSpace =
-        ColorSpace::new(RgbPrimaries::Bt2020, WhitePoint::D65, TransformFn::IctCpPq);
+    pub const ICT_CP_PQ: ColorSpace = ColorSpace::new(
+        RgbPrimaries::Bt2020,
+        WhitePoint::D65,
+        Some(TransformFn::IctCpPq),
+    );
     /// ICtCp_HLG is a non-linear encoding in [BT.2020
     /// primaries][RgbPrimaries::Bt2020], with a [D65
     /// whitepoint][WhitePoint::D65], using the HLG transfer function
-    pub const ICT_CP_HLG: ColorSpace =
-        ColorSpace::new(RgbPrimaries::Bt2020, WhitePoint::D65, TransformFn::IctCpHlg);
+    pub const ICT_CP_HLG: ColorSpace = ColorSpace::new(
+        RgbPrimaries::Bt2020,
+        WhitePoint::D65,
+        Some(TransformFn::IctCpHlg),
+    );
 
     /// Encoded Display P3 is [Display P3][DISPLAY_P3] with the [sRGB
     /// OETF](TransformFn::Srgb) applied.
     pub const ENCODED_DISPLAY_P3: ColorSpace =
-        ColorSpace::new(RgbPrimaries::P3, WhitePoint::D65, TransformFn::Srgb);
+        ColorSpace::new(RgbPrimaries::P3, WhitePoint::D65, Some(TransformFn::Srgb));
 
     /// Display P3 by Apple is a linear encoding in [P3
     /// primaries][RgbPrimaries::P3] with a [D65 white
@@ -523,7 +551,7 @@ impl Color {
         if self.space.is_linear() {
             *self
         } else {
-            let transform = ColorTransform::new(self.space.transform_function(), TransformFn::None)
+            let transform = ColorTransform::new(self.space.transform_function(), None)
                 .unwrap_or_else(|| {
                     panic!(
                         "expected transform for {:?}",
@@ -560,7 +588,7 @@ mod test {
 
     #[test]
     fn linear_srgb_to_srgb() {
-        let transform = ColorTransform::new(TransformFn::None, TransformFn::Srgb).unwrap();
+        let transform = ColorTransform::new(None, Some(TransformFn::Srgb)).unwrap();
         let test = Vec3::new(0.35, 0.1, 0.8);
         let result = transform.apply(test, WhitePoint::D65);
         let expected = Vec3::new(0.6262097, 0.34919018, 0.9063317);
@@ -587,9 +615,6 @@ mod test {
         let conversion = ColorConversion::new(spaces::ACES_CG, spaces::ENCODED_SRGB);
         let result = conversion.convert(Vec3::new(0.35, 0.1, 0.8));
         let expected = Vec3::new(0.713855624199, 0.271821975708, 0.955197274685);
-        assert!(
-            result.abs_diff_eq(expected, 0.01),
-            "{result} != {expected}"
-        );
+        assert!(result.abs_diff_eq(expected, 0.01), "{result} != {expected}");
     }
 }

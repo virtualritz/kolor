@@ -172,9 +172,15 @@ pub mod details {
     pub mod xyz;
 }
 
+pub use details::*;
+
 #[doc(inline)]
 pub use details::color::color_spaces as spaces;
 #[doc(inline)]
 pub use details::color::{Color, ColorSpace};
 #[doc(inline)]
 pub use details::conversion::ColorConversion;
+
+pub mod prelude {
+    pub use crate::details::*;
+}

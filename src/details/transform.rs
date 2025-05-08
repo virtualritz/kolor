@@ -13,20 +13,19 @@ pub struct ColorTransform {
     first: for<'r> fn(Vec3, WhitePoint) -> Vec3,
     second: Option<for<'r> fn(Vec3, WhitePoint) -> Vec3>,
 }
+
 impl ColorTransform {
     #[inline]
-    pub fn new(src_transform: TransformFn, dst_transform: TransformFn) -> Option<Self> {
+    pub fn new(
+        src_transform: Option<TransformFn>,
+        dst_transform: Option<TransformFn>,
+    ) -> Option<Self> {
         use super::transform::*;
-        let from_transform = if src_transform == TransformFn::None {
-            None
-        } else {
-            Some(TRANSFORMS_INVERSE[src_transform as usize - 1])
-        };
-        let to_transform = if dst_transform == TransformFn::None {
-            None
-        } else {
-            Some(TRANSFORMS[dst_transform as usize - 1])
-        };
+
+        let from_transform = src_transform.map(|src| TRANSFORMS_INVERSE[src as usize]);
+
+        let to_transform = dst_transform.map(|dst| TRANSFORMS[dst as usize]);
+
         if let Some(from_transform) = from_transform {
             Some(Self {
                 first: from_transform,
@@ -789,16 +788,10 @@ mod test {
         // validate inverse matrices
         let value = Vec3::new(0.5, 0.5, 0.5);
         let result = ict_cp::ICT_CP_FROM_PQ_INVERSE * (ict_cp::ICT_CP_FROM_PQ * value);
-        assert!(
-            value.abs_diff_eq(result, 0.0001),
-            "{value:?} != {result:?}"
-        );
+        assert!(value.abs_diff_eq(result, 0.0001), "{value:?} != {result:?}");
 
         let result = ict_cp::ICT_CP_LMS_INVERSE * (ict_cp::ICT_CP_LMS * value);
-        assert!(
-            value.abs_diff_eq(result, 0.0001),
-            "{value:?} != {result:?}"
-        );
+        assert!(value.abs_diff_eq(result, 0.0001), "{value:?} != {result:?}");
 
         let to = |value: Vec3| from_conv.convert(to_conv.convert(value));
         let from = |value: Vec3| from_conv.convert(to_conv.convert(value));
