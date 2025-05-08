@@ -474,7 +474,7 @@ impl Color {
             value: glam::f64::DVec3::new(x, y, z),
             space,
         };
-        #[cfg(all(feature = "glam", feature = "f32"))]
+        #[cfg(all(feature = "glam", not(feature = "f64")))]
         return Self {
             value: glam::f32::Vec3::new(x, y, z),
             space,
@@ -497,7 +497,7 @@ impl Color {
             value: glam::f64::DVec3::new(x, y, z),
             space: color_spaces::ENCODED_SRGB,
         };
-        #[cfg(all(feature = "glam", feature = "f32"))]
+        #[cfg(all(feature = "glam", not(feature = "f64")))]
         return Self {
             value: glam::f32::Vec3::new(x, y, z),
             space: color_spaces::ENCODED_SRGB,
@@ -566,9 +566,7 @@ mod test {
         let expected = Vec3::new(0.6262097, 0.34919018, 0.9063317);
         assert!(
             result.abs_diff_eq(expected, 0.001),
-            "{} != {}",
-            result,
-            expected
+            "{result} != {expected}"
         );
     }
 
@@ -591,9 +589,7 @@ mod test {
         let expected = Vec3::new(0.713855624199, 0.271821975708, 0.955197274685);
         assert!(
             result.abs_diff_eq(expected, 0.01),
-            "{} != {}",
-            result,
-            expected
+            "{result} != {expected}"
         );
     }
 }

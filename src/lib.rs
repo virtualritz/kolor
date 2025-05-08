@@ -134,9 +134,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(unexpected_cfgs)]
 
-#[cfg(all(feature = "f32", feature = "f64"))]
-compile_error!("Only `f32` or `f64` can be selected at a time.");
-
 #[cfg(feature = "f64")]
 pub type Float = f64;
 
@@ -174,6 +171,7 @@ pub mod details {
     pub mod transform;
     pub mod xyz;
 }
+
 #[doc(inline)]
 pub use details::color::color_spaces as spaces;
 #[doc(inline)]

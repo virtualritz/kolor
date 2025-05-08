@@ -35,10 +35,10 @@ impl LinearColorConversion {
 
     pub fn new(src: ColorSpace, dst: ColorSpace) -> Self {
         if !src.is_linear() {
-            panic!("{:?} is not a linear color space", src);
+            panic!("{src:?} is not a linear color space");
         }
         if !dst.is_linear() {
-            panic!("{:?} is not a linear color space", dst);
+            panic!("{dst:?} is not a linear color space");
         }
         #[cfg(feature = "color-matrices")]
         let const_conversion = super::generated_matrices::const_conversion_matrix(
