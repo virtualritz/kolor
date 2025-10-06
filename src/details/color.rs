@@ -3,6 +3,38 @@ use crate::{Float, Vec3};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+/// Error type for color space operations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColorError {
+    /// Failed to canonicalize custom values to a known standard.
+    CanonicalizationFailed,
+}
+
+impl core::fmt::Display for ColorError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::CanonicalizationFailed => write!(f, "No matching standard values found"),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for ColorError {}
+
+/// Helper function to check if two sets of primaries match within epsilon tolerance.
+fn primaries_match(a: &[[Float; 2]; 3], b: &[[Float; 2]; 3], epsilon: Float) -> bool {
+    a.iter()
+        .zip(b.iter())
+        .all(|(ap, bp)| (ap[0] - bp[0]).abs() < epsilon && (ap[1] - bp[1]).abs() < epsilon)
+}
+
+/// Helper function to check if two XYZ values match within epsilon tolerance.
+fn xyz_match(a: &[Float; 3], b: &[Float; 3], epsilon: Float) -> bool {
+    a.iter()
+        .zip(b.iter())
+        .all(|(av, bv)| (av - bv).abs() < epsilon)
+}
+
 /// Identifies an invertible mapping of colors in a linear [`ColorSpace`].
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
@@ -58,7 +90,7 @@ impl TransformFn {
 
 /// A set of primary colors picked to define an RGB color space.
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 pub enum RgbPrimaries {
@@ -66,8 +98,10 @@ pub enum RgbPrimaries {
     Bt709,
     // BT 2020 uses the same primaries as BT 2100.
     Bt2020,
-    Ap0,
-    Ap1,
+    /// ACES AP0 primaries
+    AcesAp0,
+    /// ACES AP1 primaries
+    AcesAp1,
     /// P3 is the primaries for DCI-P3 and the variations with different white
     /// points.
     P3,
@@ -78,6 +112,8 @@ pub enum RgbPrimaries {
     CieRgb,
     /// The reference XYZ color space
     CieXyz,
+    /// Custom primaries defined as CIE xy chromaticity coordinates for R, G, B
+    Custom([[Float; 2]; 3]),
 }
 impl RgbPrimaries {
     pub const ENUM_COUNT: RgbPrimaries = RgbPrimaries::CieXyz;
@@ -86,8 +122,8 @@ impl RgbPrimaries {
         match self {
             Self::Bt709 => &[[0.64, 0.33], [0.30, 0.60], [0.15, 0.06]],
             Self::Bt2020 => &[[0.708, 0.292], [0.17, 0.797], [0.131, 0.046]],
-            Self::Ap0 => &[[0.7347, 0.2653], [0.0000, 1.0000], [0.0001, -0.0770]],
-            Self::Ap1 => &[[0.713, 0.293], [0.165, 0.830], [0.128, 0.044]],
+            Self::AcesAp0 => &[[0.7347, 0.2653], [0.0000, 1.0000], [0.0001, -0.0770]],
+            Self::AcesAp1 => &[[0.713, 0.293], [0.165, 0.830], [0.128, 0.044]],
             Self::Adobe1998 => &[[0.64, 0.33], [0.21, 0.71], [0.15, 0.06]],
             Self::AdobeWide => &[[0.735, 0.265], [0.115, 0.826], [0.157, 0.018]],
             Self::ProPhoto => &[
@@ -99,16 +135,112 @@ impl RgbPrimaries {
             Self::P3 => &[[0.680, 0.320], [0.265, 0.690], [0.150, 0.060]],
             Self::CieRgb => &[[0.7350, 0.2650], [0.2740, 0.7170], [0.1670, 0.0090]],
             Self::CieXyz => &[[1.0, 0.0], [0.0, 1.0], [0.0, 0.0]],
+            Self::Custom(values) => values,
+        }
+    }
+
+    /// Create RGB primaries from CIE xy chromaticity coordinates.
+    /// Automatically detects and returns known primaries if values match within tolerance.
+    pub fn from_rgb_xy(r: [Float; 2], g: [Float; 2], b: [Float; 2]) -> Self {
+        const EPSILON: Float = 1e-4;
+        let values = [r, g, b];
+
+        // Check against all known primaries
+        let variants = [
+            Self::Bt709,
+            Self::Bt2020,
+            Self::AcesAp0,
+            Self::AcesAp1,
+            Self::Adobe1998,
+            Self::AdobeWide,
+            Self::ProPhoto,
+            Self::Apple,
+            Self::P3,
+            Self::CieRgb,
+            Self::CieXyz,
+        ];
+
+        for variant in &variants {
+            if primaries_match(&values, variant.values(), EPSILON) {
+                return *variant;
+            }
+        }
+
+        Self::Custom(values)
+    }
+
+    /// Try to canonicalize Custom variant to a known one in place.
+    /// Returns Ok(()) if successful (or already canonical), Err if no match found.
+    pub fn canonicalize(&mut self) -> Result<(), ColorError> {
+        if let Self::Custom(values) = self {
+            const EPSILON: Float = 1e-4;
+            let variants = [
+                Self::Bt709,
+                Self::Bt2020,
+                Self::AcesAp0,
+                Self::AcesAp1,
+                Self::Adobe1998,
+                Self::AdobeWide,
+                Self::ProPhoto,
+                Self::Apple,
+                Self::P3,
+                Self::CieRgb,
+                Self::CieXyz,
+            ];
+
+            for variant in &variants {
+                if primaries_match(values, variant.values(), EPSILON) {
+                    *self = *variant;
+                    return Ok(());
+                }
+            }
+            Err(ColorError::CanonicalizationFailed)
+        } else {
+            Ok(()) // Already canonical
         }
     }
 }
+
+impl core::hash::Hash for RgbPrimaries {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        if let Self::Custom(values) = self {
+            for primary in values {
+                for coord in primary {
+                    // Handle -0.0 vs 0.0 and NaN cases
+                    #[cfg(not(feature = "f64"))]
+                    let bits: u32 = if *coord == 0.0 {
+                        0u32 // Both -0.0 and 0.0 hash to same value
+                    } else if coord.is_nan() {
+                        u32::MAX // All NaN values hash to same value
+                    } else {
+                        coord.to_bits()
+                    };
+
+                    #[cfg(feature = "f64")]
+                    let bits: u64 = if *coord == 0.0 {
+                        0u64 // Both -0.0 and 0.0 hash to same value
+                    } else if coord.is_nan() {
+                        u64::MAX // All NaN values hash to same value
+                    } else {
+                        coord.to_bits()
+                    };
+
+                    bits.hash(state);
+                }
+            }
+        }
+    }
+}
+
+impl Eq for RgbPrimaries {}
 
 /// Defines the color white ("achromatic point") in an RGB color system.
 ///
 /// White points are derived from an "illuminant" which are defined
 /// as some reference lighting condition based on a Spectral Power Distribution.
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 pub enum WhitePoint {
@@ -137,6 +269,8 @@ pub enum WhitePoint {
     F7,
     /// Ultralume 40, Philips TL84
     F11,
+    /// Custom white point defined as CIE XYZ coordinates where Y=1.0
+    Custom([Float; 3]),
 }
 impl WhitePoint {
     pub const ENUM_COUNT: WhitePoint = WhitePoint::F11;
@@ -144,7 +278,7 @@ impl WhitePoint {
     // Pulled from http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
     // Originally from ASTM E308-01 except B which comes from Wyszecki & Stiles, p.
     // 769 P3Dci is something I calculated myself from wikipedia constants
-    pub const fn values(&self) -> &'static [Float; 3] {
+    pub const fn values(&self) -> &[Float; 3] {
         match self {
             Self::A => &[1.09850, 1.00000, 0.35585],
             Self::B => &[0.99072, 1.00000, 0.85223],
@@ -160,9 +294,109 @@ impl WhitePoint {
             Self::F2 => &[0.99186, 1.00000, 0.67393],
             Self::F7 => &[0.95041, 1.00000, 1.08747],
             Self::F11 => &[1.00962, 1.00000, 0.64350],
+            Self::Custom(values) => values,
+        }
+    }
+
+    /// Create a white point from CIE xy chromaticity coordinates.
+    /// Converts to XYZ with Y=1.0.
+    /// Automatically detects and returns known white points if values match within tolerance.
+    pub fn from_xy(x: Float, y: Float) -> Self {
+        const EPSILON: Float = 1e-4;
+        let z = 1.0 - x - y;
+        let xyz = [x / y, 1.0, z / y];
+
+        // Check against all known white points
+        let variants = [
+            Self::A,
+            Self::B,
+            Self::C,
+            Self::E,
+            Self::D50,
+            Self::D55,
+            Self::D60,
+            Self::D65,
+            Self::D75,
+            Self::P3Dci,
+            Self::F2,
+            Self::F7,
+            Self::F11,
+        ];
+
+        for variant in &variants {
+            if xyz_match(&xyz, variant.values(), EPSILON) {
+                return *variant;
+            }
+        }
+
+        Self::Custom(xyz)
+    }
+
+    /// Try to canonicalize Custom variant to a known one in place.
+    /// Returns Ok(()) if successful (or already canonical), Err if no match found.
+    pub fn canonicalize(&mut self) -> Result<(), ColorError> {
+        if let Self::Custom(values) = self {
+            const EPSILON: Float = 1e-4;
+            let variants = [
+                Self::A,
+                Self::B,
+                Self::C,
+                Self::E,
+                Self::D50,
+                Self::D55,
+                Self::D60,
+                Self::D65,
+                Self::D75,
+                Self::P3Dci,
+                Self::F2,
+                Self::F7,
+                Self::F11,
+            ];
+
+            for variant in &variants {
+                if xyz_match(values, variant.values(), EPSILON) {
+                    *self = *variant;
+                    return Ok(());
+                }
+            }
+            Err(ColorError::CanonicalizationFailed)
+        } else {
+            Ok(()) // Already canonical
         }
     }
 }
+
+impl core::hash::Hash for WhitePoint {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        if let Self::Custom(values) = self {
+            for coord in values {
+                // Handle -0.0 vs 0.0 and NaN cases
+                #[cfg(not(feature = "f64"))]
+                let bits: u32 = if *coord == 0.0 {
+                    0u32 // Both -0.0 and 0.0 hash to same value
+                } else if coord.is_nan() {
+                    u32::MAX // All NaN values hash to same value
+                } else {
+                    coord.to_bits()
+                };
+
+                #[cfg(feature = "f64")]
+                let bits: u64 = if *coord == 0.0 {
+                    0u64 // Both -0.0 and 0.0 hash to same value
+                } else if coord.is_nan() {
+                    u64::MAX // All NaN values hash to same value
+                } else {
+                    coord.to_bits()
+                };
+
+                bits.hash(state);
+            }
+        }
+    }
+}
+
+impl Eq for WhitePoint {}
 
 /// A color space defined in data by its [primaries][RgbPrimaries], [white
 /// point][WhitePoint], and an optional [invertible transform
@@ -281,6 +515,26 @@ impl ColorSpace {
         }
     }
 
+    /// Create a color space from custom primaries and white point chromaticities.
+    ///
+    /// The primaries should be provided as CIE xy chromaticity coordinates for R, G, B.
+    /// The white point is provided as CIE xy chromaticity coordinates.
+    /// Automatically detects and uses known primaries and white points if values match.
+    pub fn from_primaries_and_white_point(
+        r: [Float; 2],
+        g: [Float; 2],
+        b: [Float; 2],
+        white_x: Float,
+        white_y: Float,
+        transform_fn: Option<TransformFn>,
+    ) -> Self {
+        Self {
+            primaries: RgbPrimaries::from_rgb_xy(r, g, b),
+            white_point: WhitePoint::from_xy(white_x, white_y),
+            transform_fn,
+        }
+    }
+
     /// Creates a CIE LAB color space using this space's white point.
     pub fn to_cie_lab(&self) -> Self {
         Self::new(
@@ -338,13 +592,13 @@ pub mod color_spaces {
         Some(TransformFn::Bt601),
     );
 
-    /// ACEScg is a linear encoding in [AP1 primaries][RgbPrimaries::Ap1]
+    /// ACEScg is a linear encoding in [AP1 primaries][RgbPrimaries::AcesAp1]
     /// with a [D60 whitepoint][WhitePoint::D60].
-    pub const ACES_CG: ColorSpace = ColorSpace::linear(RgbPrimaries::Ap1, WhitePoint::D60);
+    pub const ACES_CG: ColorSpace = ColorSpace::linear(RgbPrimaries::AcesAp1, WhitePoint::D60);
 
-    /// ACES2065-1 is a linear encoding in [AP0 primaries][RgbPrimaries::Ap0]
+    /// ACES2065-1 is a linear encoding in [AP0 primaries][RgbPrimaries::AcesAp0]
     /// with a [D60 whitepoint][WhitePoint::D60].
-    pub const ACES_2065_1: ColorSpace = ColorSpace::linear(RgbPrimaries::Ap0, WhitePoint::D60);
+    pub const ACES_2065_1: ColorSpace = ColorSpace::linear(RgbPrimaries::AcesAp0, WhitePoint::D60);
 
     /// CIE RGB is the original RGB space, defined in [CIE RGB
     /// primaries][RgbPrimaries::CieRgb] with white point
