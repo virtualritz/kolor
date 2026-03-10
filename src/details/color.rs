@@ -497,12 +497,7 @@ pub struct Color {
 }
 impl Color {
     pub const fn new(x: Float, y: Float, z: Float, space: ColorSpace) -> Self {
-        #[cfg(all(feature = "glam", feature = "f64"))]
-        return Self {
-            value: glam::f64::DVec3::new(x, y, z),
-            space,
-        };
-        #[cfg(all(feature = "glam", not(feature = "f64")))]
+        #[cfg(feature = "glam")]
         return Self {
             value: glam::f32::Vec3::new(x, y, z),
             space,
@@ -520,12 +515,7 @@ impl Color {
 
     /// Equivalent to `Color::new(x, y, z, kolor::spaces::ENCODED_SRGB)`
     pub const fn srgb(x: Float, y: Float, z: Float) -> Self {
-        #[cfg(all(feature = "glam", feature = "f64"))]
-        return Self {
-            value: glam::f64::DVec3::new(x, y, z),
-            space: color_spaces::ENCODED_SRGB,
-        };
-        #[cfg(all(feature = "glam", not(feature = "f64")))]
+        #[cfg(feature = "glam")]
         return Self {
             value: glam::f32::Vec3::new(x, y, z),
             space: color_spaces::ENCODED_SRGB,
