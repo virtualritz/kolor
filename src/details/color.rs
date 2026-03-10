@@ -208,7 +208,6 @@ impl core::hash::Hash for RgbPrimaries {
             for primary in values {
                 for coord in primary {
                     // Handle -0.0 vs 0.0 and NaN cases
-                    #[cfg(not(feature = "f64"))]
                     let bits: u32 = if *coord == 0.0 {
                         0u32 // Both -0.0 and 0.0 hash to same value
                     } else if coord.is_nan() {
@@ -216,16 +215,6 @@ impl core::hash::Hash for RgbPrimaries {
                     } else {
                         coord.to_bits()
                     };
-
-                    #[cfg(feature = "f64")]
-                    let bits: u64 = if *coord == 0.0 {
-                        0u64 // Both -0.0 and 0.0 hash to same value
-                    } else if coord.is_nan() {
-                        u64::MAX // All NaN values hash to same value
-                    } else {
-                        coord.to_bits()
-                    };
-
                     bits.hash(state);
                 }
             }
@@ -372,7 +361,6 @@ impl core::hash::Hash for WhitePoint {
         if let Self::Custom(values) = self {
             for coord in values {
                 // Handle -0.0 vs 0.0 and NaN cases
-                #[cfg(not(feature = "f64"))]
                 let bits: u32 = if *coord == 0.0 {
                     0u32 // Both -0.0 and 0.0 hash to same value
                 } else if coord.is_nan() {
@@ -380,16 +368,6 @@ impl core::hash::Hash for WhitePoint {
                 } else {
                     coord.to_bits()
                 };
-
-                #[cfg(feature = "f64")]
-                let bits: u64 = if *coord == 0.0 {
-                    0u64 // Both -0.0 and 0.0 hash to same value
-                } else if coord.is_nan() {
-                    u64::MAX // All NaN values hash to same value
-                } else {
-                    coord.to_bits()
-                };
-
                 bits.hash(state);
             }
         }
@@ -751,12 +729,7 @@ pub struct Color {
 }
 impl Color {
     pub const fn new(x: Float, y: Float, z: Float, space: ColorSpace) -> Self {
-        #[cfg(all(feature = "glam", feature = "f64"))]
-        return Self {
-            value: glam::f64::DVec3::new(x, y, z),
-            space,
-        };
-        #[cfg(all(feature = "glam", not(feature = "f64")))]
+        #[cfg(feature = "glam")]
         return Self {
             value: glam::f32::Vec3::new(x, y, z),
             space,
@@ -774,12 +747,7 @@ impl Color {
 
     /// Equivalent to `Color::new(x, y, z, kolor::spaces::ENCODED_SRGB)`
     pub const fn srgb(x: Float, y: Float, z: Float) -> Self {
-        #[cfg(all(feature = "glam", feature = "f64"))]
-        return Self {
-            value: glam::f64::DVec3::new(x, y, z),
-            space: color_spaces::ENCODED_SRGB,
-        };
-        #[cfg(all(feature = "glam", not(feature = "f64")))]
+        #[cfg(feature = "glam")]
         return Self {
             value: glam::f32::Vec3::new(x, y, z),
             space: color_spaces::ENCODED_SRGB,

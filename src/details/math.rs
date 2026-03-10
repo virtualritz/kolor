@@ -14,15 +14,8 @@ pub use math::*;
 #[cfg(feature = "glam")]
 #[allow(clippy::module_inception)]
 mod math {
-    #[cfg(not(feature = "f64"))]
     pub use glam::f32::Mat3;
-    #[cfg(not(feature = "f64"))]
     pub use glam::f32::Vec3;
-
-    #[cfg(feature = "f64")]
-    pub use glam::f64::DMat3 as Mat3;
-    #[cfg(feature = "f64")]
-    pub use glam::f64::DVec3 as Vec3;
 
     #[cfg(all(not(feature = "std"), feature = "libm"))]
     use num_traits::Float;

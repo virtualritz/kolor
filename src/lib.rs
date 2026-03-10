@@ -88,8 +88,7 @@
 //!
 //! [`LinearColorConversion`][details::conversion::LinearColorConversion] can be
 //! used to generate conversion matrices "offline",
-//! in which case you probably want to use the `f64` feature for better
-//! precision. The precision of the derived matrices won't be perfect, but
+//! The precision of the derived matrices won't be perfect, but
 //! probably good enough for games.
 //!
 //! Conversions between all combinations of built-in primaries and whitepoints
@@ -132,12 +131,7 @@
 //! ### List of Features
 #![doc = document_features::document_features!()]
 #![cfg_attr(not(feature = "std"), no_std)]
-#![allow(unexpected_cfgs)]
 
-#[cfg(feature = "f64")]
-pub type Float = f64;
-
-#[cfg(not(feature = "f64"))]
 pub type Float = f32;
 
 pub use details::math::{Mat3, Vec3};
@@ -152,10 +146,7 @@ macro_rules! const_mat3 {
     };
 }
 
-#[cfg(not(feature = "f64"))]
 pub(crate) use core::f32::consts::{PI, TAU};
-#[cfg(feature = "f64")]
-pub(crate) use core::f64::consts::{PI, TAU};
 
 pub mod details {
     pub mod cat;
