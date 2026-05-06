@@ -179,7 +179,7 @@ pub use details::color::color_spaces as spaces;
 #[doc(inline)]
 pub use details::color::{Color, ColorError, ColorSpace};
 #[doc(inline)]
-pub use details::conversion::ColorConversion;
+pub use details::conversion::{ColorConversion, LinearColorConversion};
 
 pub mod prelude {
     pub use crate::details::*;
