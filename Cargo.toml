@@ -12,7 +12,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 document-features = "0.2"
-glam = { version = "0.30", default-features = false, optional = true }
+glam = { version = "0.33", default-features = false, optional = true }
 num-traits = { version = "0.2", optional = true, default-features = false }
 serde = { optional = true, version = "1", features = ["derive"] }
 
@@ -21,7 +21,7 @@ default = ["std-glam", "color-matrices"]
 ## Add a bunch of common color spaces.
 color-matrices = []
 ## Use `f64` for calculations/types.
-f64 = []
+f64 = ["glam?/f64"]
 ## Add support for `serde`'s `Serialize` and `Deserialize` on `kolor` types.
 serde = ["dep:serde", "glam/serde"]
 ## Enable `std` support.
