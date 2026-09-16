@@ -134,6 +134,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(unexpected_cfgs)]
 
+// `libm` enables `num-traits`, but with `std` also on the inherent float
+// methods win and nothing else names the crate.
+#[cfg(all(feature = "libm", feature = "std"))]
+use num_traits as _;
+
 #[cfg(feature = "f64")]
 pub type Float = f64;
 

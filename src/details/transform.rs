@@ -3,8 +3,8 @@ use super::{
     math::prelude::*,
 };
 use crate::{Float, Mat3, PI, TAU, Vec3};
-#[cfg(all(not(feature = "std"), feature = "libm"))]
-use num_traits::Float;
+#[cfg(all(not(feature = "std"), feature = "libm", not(test)))]
+use num_traits::Float as _;
 
 /// Represents a reference to a function that can apply a [`TransformFn`] or
 /// its inverse.

@@ -848,7 +848,7 @@ mod test {
         let expected = Vec3::new(0.6262097, 0.34919018, 0.9063317);
         assert!(
             result.abs_diff_eq(expected, 0.001),
-            "{result} != {expected}"
+            "{result:?} != {expected:?}"
         );
     }
 
@@ -865,10 +865,17 @@ mod test {
     // }
 
     #[test]
+    #[allow(
+        clippy::excessive_precision,
+        reason = "reference values shared by the f32 and f64 builds"
+    )]
     fn aces_cg_to_srgb() {
         let conversion = ColorConversion::new(spaces::ACES_CG, spaces::ENCODED_SRGB);
         let result = conversion.convert(Vec3::new(0.35, 0.1, 0.8));
         let expected = Vec3::new(0.713855624199, 0.271821975708, 0.955197274685);
-        assert!(result.abs_diff_eq(expected, 0.01), "{result} != {expected}");
+        assert!(
+            result.abs_diff_eq(expected, 0.01),
+            "{result:?} != {expected:?}"
+        );
     }
 }

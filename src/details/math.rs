@@ -24,8 +24,8 @@ mod math {
     #[cfg(feature = "f64")]
     pub use glam::f64::DVec3 as Vec3;
 
-    #[cfg(all(not(feature = "std"), feature = "libm"))]
-    use num_traits::Float;
+    #[cfg(all(not(feature = "std"), feature = "libm", not(test)))]
+    use num_traits::Float as _;
 
     impl super::Cuberoot for Vec3 {
         #[inline]
@@ -41,8 +41,8 @@ mod math {
     use crate::Float;
     #[cfg(all(not(feature = "std"), feature = "libm"))]
     use core::ops::{Add, Div, Mul, MulAssign, Sub};
-    #[cfg(all(not(feature = "std"), feature = "libm"))]
-    use num_traits::Float;
+    #[cfg(all(not(feature = "std"), feature = "libm", not(test)))]
+    use num_traits::Float as _;
     #[cfg(all(not(feature = "libm"), feature = "std"))]
     use std::ops::{Add, Div, Mul, MulAssign, Sub};
 
@@ -265,7 +265,7 @@ mod math {
 
             let inv_det = 1.0 / det;
 
-            let result = Self {
+            Self {
                 x_axis: Vec3::new(
                     (m11 * m22 - m21 * m12) * inv_det,
                     (m12 * m20 - m10 * m22) * inv_det,
@@ -281,9 +281,7 @@ mod math {
                     (m10 * m02 - m00 * m12) * inv_det,
                     (m00 * m11 - m10 * m01) * inv_det,
                 ),
-            };
-
-            result
+            }
         }
     }
 
