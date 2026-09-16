@@ -24,7 +24,11 @@ mod math {
     #[cfg(feature = "f64")]
     pub use glam::f64::DVec3 as Vec3;
 
-    #[cfg(all(not(feature = "std"), feature = "libm", not(test)))]
+    // Needed in a true `no_std` build; unused whenever `std` is in the crate
+    // graph (tests, or a dependent's dev-dependencies), since the
+    // inherent float methods then take precedence.
+    #[cfg(all(not(feature = "std"), feature = "libm"))]
+    #[allow(unused_imports)]
     use num_traits::Float as _;
 
     impl super::Cuberoot for Vec3 {
@@ -41,7 +45,11 @@ mod math {
     use crate::Float;
     #[cfg(all(not(feature = "std"), feature = "libm"))]
     use core::ops::{Add, Div, Mul, MulAssign, Sub};
-    #[cfg(all(not(feature = "std"), feature = "libm", not(test)))]
+    // Needed in a true `no_std` build; unused whenever `std` is in the crate
+    // graph (tests, or a dependent's dev-dependencies), since the
+    // inherent float methods then take precedence.
+    #[cfg(all(not(feature = "std"), feature = "libm"))]
+    #[allow(unused_imports)]
     use num_traits::Float as _;
     #[cfg(all(not(feature = "libm"), feature = "std"))]
     use std::ops::{Add, Div, Mul, MulAssign, Sub};
